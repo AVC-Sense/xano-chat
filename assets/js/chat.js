@@ -7,23 +7,25 @@
   + show Overlay and Login button if NO
   + add receiver_mail field for Requests tables
   + update API, add paths (Only all request works fine)
-  - load all chat list (Need to group chats by sender_email on JS side)
+  + load all chat list (Need to group chats by sender_email on JS side)
   + show Overlay and Add Contact button if user list is empty (same as for empty filter result after searh on top input)
   - add Click on Overlay to Close it
-  - send messages to another User
-  - load all messages from another User
+  + send messages to another User
+  + load all messages from another User
   - clear search box after adding a new contact
   - clean all code
   - if sender_email == cred.sender.email, then right chat else - left chat
+  - clear input after sending a message
+  - fix adding new Contact to Groupped chats
+  - check filtering
 */
 
 const user_api_url = "https://x8ki-letl-twmt.n7.xano.io/api:yKiPHhYH/users";
-const chat_api_url = "https://x8ki-letl-twmt.n7.xano.io/api:9tWaOBw7/getAllRequests";
-//const chat_api_url = "https://x8ki-letl-twmt.n7.xano.io/api:ZHMh-f15/getAllRequests";
 var credentials;
+var chatList;
+var chatsData;
 
-function chatMessagesSend(){
-  console.log("!chatMessagesSend")
+function chatMessagesSend() {
   var api_url = $("#contact-area")[0].dataset.api_url + "/addRequest";
 
   var message = $(".chat-message-send").val();
@@ -36,30 +38,22 @@ function chatMessagesSend(){
     "receiver_email": email
   }
 
-  console.log(dataPost)
-
-  $.post(api_url, dataPost, function(data, status) {
-    console.log("URL: " + api_url);
-    console.log("Data: " + data);
-    console.log("Status: " + status);
+  $.post(api_url, dataPost, function (data, status) {
 
     postChat(message, false)
     $(".chat-message-send").text();
 
-    $.post(credentials.api_url + "/addRequest", dataPost, function(data, status) {
+    $.post(credentials.api_url + "/addRequest", dataPost, function (data, status) {
       console.log("URL: " + credentials.api_url);
-      console.log("Data: " + data);
       console.log("Status: " + status);
-
     })
 
   });
-
 }
 
 function postChat(message, incoming) {
-  var chat = 
-  `<div class="chat ${incoming?"chat-left":""}">
+  var chat =
+    `<div class="chat ${incoming ? "chat-left" : ""}">
     <!-- <div class="chat-avatar">
       <div class="avatar avatar-md">
        <img src="app-assets/img/portrait/small/avatar.png" alt="avatar">
@@ -79,6 +73,7 @@ function postChat(message, incoming) {
   var cred = sessionStorage.getItem("credentials");
   credentials = JSON.parse(cred);
 
+  // Check login and credentials
   if (!cred || !credentials || !credentials.sender_mail || !credentials.api_url) {
     $(".main-wrapper").addClass("show-blocker");
     $("#btn_login").show();
@@ -88,9 +83,6 @@ function postChat(message, incoming) {
   $("#user-title").text(credentials.sender_mail);
   $("#btn_login").hide();
   $("#user_bar").show();
-
-  var userList;
-  var chatList;
 
   // Buttons 
   $(".content-overlay .add-contact").click(function () {
@@ -113,27 +105,39 @@ function postChat(message, incoming) {
 
   $.get(credentials.api_url + "/getAllRequests", function (chats) {
     chatList = chats;
-    console.log(chats);
 
-    if(!chats || chats.length == 0) {      
+    if (!chats || chats.length == 0) {
       $(".wrapper").addClass("show-overlay")
       return;
     }
 
-    $.each(chats, function (index, obj) {
+    // Grouping by interlocutor
+    var data = chatList.reduce((chat, message) => {
+      const email = message.sender_email == credentials.sender_mail ? message.receiver_email : message.sender_email;
+      chat[email] = chat[email] ?? [];
+      chat[email].push(message);
+      return chat;
+    }, {});
+
+    chatsData = data;
+
+    // Fill chat list
+    $.each(data, function (index, obj) {
+      obj.sort((a, b) => b.created_at - a.created_at)
+      var lastMessage = obj.slice(0, 1)[0];
       $("#users-list div.users-list-padding").append(
-        `<a class="list-group-item" data-email='${obj.sender_email}' data-api_url='${obj.api_url}'>
+        `<a class="list-group-item" data-email='${index}'>
           <div class="media align-items-center py-1">
             <span class="avatar avatar-md mr-2">
               <img src="app-assets/img/portrait/small/avatar.png" alt="Avatar">
               <span class="avatar-status-online"></span>
             </span>
             <div class="media-body">
-                <h6 class="list-group-item-heading mb-1">"${obj.sender_email.toString().substring(0, 20)}"
-                    <span class="font-small-2 float-right grey darken-1">"${obj.created_at}"</span>
+                <h6 class="list-group-item-heading mb-1">"${lastMessage.sender_email}"
+                    <span class="font-small-2 float-right grey darken-1">"${lastMessage.created_at}"</span>
                 </h6>
                 <p class="list-group-item-text grey darken-2 m-0">
-                    <i class="ft-check primary font-small-2 mr-1"></i><span>"${obj.txn_id.toString().substring(0, 20)}"</span>
+                    <i class="ft-check primary font-small-2 mr-1"></i><span>"${lastMessage.txn_id.toString().substring(0, 20)}"</span>
                     <span class="float-right primary"><i class="font-medium-1 icon-pin"></i></span>
                 </p>
             </div>
@@ -142,7 +146,7 @@ function postChat(message, incoming) {
       );
     })
 
-    $(".list-group-item").click("on", function () {      
+    $(".list-group-item").click("on", function () {
       $(this).addClass("selected-chat")
       selectChat(this.dataset.email);
     });
@@ -150,7 +154,6 @@ function postChat(message, incoming) {
 
   // Filter
   $("#timesheetinput1").on("keyup", function (e) {
-    console.log("Check!");
     if (e.keyCode !== 38 && e.keyCode !== 40 && e.keyCode !== 13) {
       if (e.keyCode == 27) {
         $("#timesheetinput1").val("")
@@ -168,8 +171,6 @@ function postChat(message, incoming) {
       // If input value is blank
       //if (value != "") {
       $(".wrapper").addClass("show-overlay")
-
-      console.log(value);
 
       var data = chatList.filter(user => user.sender_email.includes(value));
       fillUserList(data);
@@ -258,50 +259,47 @@ function postChat(message, incoming) {
     });
   }
 
-  function fillChat(messages) {    
+  function fillChat(messages) {
     $(".chat-app-window .chats").empty();
-    console.log("Fill the Chat with messages:")
-    console.log(messages)
     var incoming = true;
-    $.each(messages, function(index, obj) {
-      incoming =  !obj.receiver_email || obj.receiver_email == "";
+    $.each(messages, function (index, obj) {
+      incoming = obj.receiver_email == credentials.sender_mail;
       postChat(obj.txn_id, incoming)
     })
   }
 
   // Add message to chat
-function postMessage(message, incoming) {
-  if ((message != "") && message != " ") {
-    var html = '<div class="chat-content">' + "<p>" + message + "</p>" + "</div>";
-    $(".chat-app-window .chat:last-child .chat-body").append(html);
-    $(".chat-message-send").val("");
-    $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
+  function postMessage(message, incoming) {
+    if ((message != "") && message != " ") {
+      var html = '<div class="chat-content">' + "<p>" + message + "</p>" + "</div>";
+      $(".chat-app-window .chat:last-child .chat-body").append(html);
+      $(".chat-message-send").val("");
+      $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
+    }
   }
-}
 
-function selectChat(email){
-  console.log($("#contact-area .contact-title").text());
-  console.log(email)
-  $("#contact-area .contact-title").text(email)
-  var api_url;
+  function selectChat(email) {
+    console.log(email)
+    $("#contact-area .contact-title").text(email)
+    var api_url;
 
-  $.get(user_api_url, function (users) {
-    console.log(users)
-    var api = users.filter(user => user.sender_mail == email)[0].api_url;
-    console.log("API URL:")
-    console.log(api)
-    $("#contact-area").attr("data-api_url", api)
-  })
+    $.get(user_api_url, function (users) {
+      var selectedUser = users.filter(user => user.sender_mail == email)[0];
+      var api = selectedUser.api_url;
+      console.log("API URL:")
+      console.log(api)
+      $("#contact-area").attr("data-api_url", api)
+    })
 
 
-  $("#users-list .users-list-padding .list-group-item").removeClass("selected-chat")
-  var data = chatList.filter(message => message.sender_email == email || message.receiver_email == email)
-  fillChat(data)
+    $("#users-list .users-list-padding .list-group-item").removeClass("selected-chat")
+    var data = chatList.filter(message => message.sender_email == email || message.receiver_email == email)
+    fillChat(data)
 
-}
+  }
 
-function test(data){
-  console.log(data)
-}
+  function test(data) {
+    console.log(data)
+  }
 
 })(window);
