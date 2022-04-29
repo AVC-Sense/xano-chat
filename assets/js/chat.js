@@ -14,41 +14,61 @@
   + load all messages from another User
   - clear search box after adding a new contact
   - clean all code
-  - if sender_email == cred.sender.email, then right chat else - left chat
+  + if sender_email == cred.sender.email, then right chat else - left chat
   - clear input after sending a message
   - fix adding new Contact to Groupped chats
   - check filtering
+  - add onHover on the Chat list
+  - update DB for wallet addresses and statuses
+  - update API for statuses
+  - update UI for statuses
+
 */
 
 const user_api_url = "https://x8ki-letl-twmt.n7.xano.io/api:yKiPHhYH/users";
 var credentials;
-var chatList;
-var chatsData;
+var chatList = [];
+var chatGroup = [];
 
-function chatMessagesSend() {
-  var api_url = $("#contact-area")[0].dataset.api_url + "/addRequest";
 
+// TODO: Need to update!
+function sendChat() {
+  var api_url = $("#contact-area")[0].dataset.api_url;
   var message = $(".chat-message-send").val();
-  var email = $("#contact-area .contact-title").text()
+  
+  if ((message == "") || message == " ") { return }
 
   var dataPost = {
-    "sender_email": credentials.sender_mail,
+    "sender_wallet": credentials.sender_wallet,
+    "api_url": api_url,
     "txn_id": message,
-    "request": "test",
-    "receiver_email": email
+    "request": {},
   }
 
-  $.post(api_url, dataPost, function (data, status) {
+  $.post(api_url + "/request",
+    {
+      "sender_wallet": dataPost.sender_wallet,
+      "api_url": credentials.api_url,
+      "txn_id": dataPost.txn_id,
+      "request": dataPost.request.toString()
+    }, function (data, status) {
 
-    postChat(message, false)
-    $(".chat-message-send").text();
+      //postChat(message, false)
 
-    $.post(credentials.api_url + "/addRequest", dataPost, function (data, status) {
-      console.log("URL: " + credentials.api_url);
-      console.log("Status: " + status);
-    })
+      $.post(credentials.api_url + "/request",
+        {
+          "sender_wallet": dataPost.sender_wallet,
+          "api_url": dataPost.api_url,
+          "txn_id": dataPost.txn_id,
+          "request": dataPost.request.toString()
+        }, function (data, status) {
+          console.log("URL: " + credentials.api_url);
+          console.log("Status: " + status);
+          $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
+          $(".chat-message-send").val("");
+        })
 
-  });
+    });
 }
 
 function postChat(message, incoming) {
@@ -73,86 +93,35 @@ function postChat(message, incoming) {
   var cred = sessionStorage.getItem("credentials");
   credentials = JSON.parse(cred);
 
-  // Check login and credentials
-  if (!cred || !credentials || !credentials.sender_mail || !credentials.api_url) {
-    $(".main-wrapper").addClass("show-blocker");
-    $("#btn_login").show();
-    $("#user_bar").hide();
-  }
-
-  $("#user-title").text(credentials.sender_mail);
-  $("#btn_login").hide();
-  $("#user_bar").show();
-
-  // Buttons 
+  // Button handlers
   $(".content-overlay .add-contact").click(function () {
     $(".wrapper").removeClass("show-overlay")
   });
 
   $("#add_user_btn").click(function () {
-    var newUser = {
-      sender_email: $("#sender_mail").val(),
-      api_url: $("#api_url").val(),
-      api_secret: $("#api_secret").val()
-    }
-    const data = [newUser].concat(chatList);
+    var userChat =
+      [$("#api_url").val(), [{
+        api_url : $("#api_url").val(),
+        sender_wallet : $("#sender_wallet").val(),
+        created_at : "",
+        txn_id : ""
+      }]]
+
+    
+    chatGroup = chatGroup ?? [];
+    const data = [userChat].concat(chatGroup);
     fillUserList(data);
     $("#timesheetinput1").value = "";
     chatList = data;
+    chatGroup = data;
   });
 
-  console.log("Loading chat list..");
+  $("#btnSendMessage").on("click", function (e) {
+    console.log("Send message..")
+    sendChat();
+  })
 
-  $.get(credentials.api_url + "/getAllRequests", function (chats) {
-    chatList = chats;
-
-    if (!chats || chats.length == 0) {
-      $(".wrapper").addClass("show-overlay")
-      return;
-    }
-
-    // Grouping by interlocutor
-    var data = chatList.reduce((chat, message) => {
-      const email = message.sender_email == credentials.sender_mail ? message.receiver_email : message.sender_email;
-      chat[email] = chat[email] ?? [];
-      chat[email].push(message);
-      return chat;
-    }, {});
-
-    chatsData = data;
-
-    // Fill chat list
-    $.each(data, function (index, obj) {
-      obj.sort((a, b) => b.created_at - a.created_at)
-      var lastMessage = obj.slice(0, 1)[0];
-      $("#users-list div.users-list-padding").append(
-        `<a class="list-group-item" data-email='${index}'>
-          <div class="media align-items-center py-1">
-            <span class="avatar avatar-md mr-2">
-              <img src="app-assets/img/portrait/small/avatar.png" alt="Avatar">
-              <span class="avatar-status-online"></span>
-            </span>
-            <div class="media-body">
-                <h6 class="list-group-item-heading mb-1">"${lastMessage.sender_email}"
-                    <span class="font-small-2 float-right grey darken-1">"${lastMessage.created_at}"</span>
-                </h6>
-                <p class="list-group-item-text grey darken-2 m-0">
-                    <i class="ft-check primary font-small-2 mr-1"></i><span>"${lastMessage.txn_id.toString().substring(0, 20)}"</span>
-                    <span class="float-right primary"><i class="font-medium-1 icon-pin"></i></span>
-                </p>
-            </div>
-          </div>
-        </a>`
-      );
-    })
-
-    $(".list-group-item").click("on", function () {
-      $(this).addClass("selected-chat")
-      selectChat(this.dataset.email);
-    });
-  });
-
-  // Filter
+  // TODO: Update Filter
   $("#timesheetinput1").on("keyup", function (e) {
     if (e.keyCode !== 38 && e.keyCode !== 40 && e.keyCode !== 13) {
       if (e.keyCode == 27) {
@@ -172,7 +141,7 @@ function postChat(message, incoming) {
       //if (value != "") {
       $(".wrapper").addClass("show-overlay")
 
-      var data = chatList.filter(user => user.sender_email.includes(value));
+      var data = chatGroup.filter(chat => chat[0].includes(value));
       fillUserList(data);
       if (data.length > 0) {
         $(".wrapper").removeClass("show-overlay")
@@ -200,37 +169,43 @@ function postChat(message, incoming) {
       $activeItemClass = "",
       a = 0
 
+    var userChat;
+
     if (data.length == 0) {
       console.log("Empty data");
     }
 
     for (var i = 0; i < data.length; i++) {
 
-      // Search list item start with entered letters and create list
-      if (
-        // data[i].sender_mail.toLowerCase().indexOf(value) == 0 &&
-        // a < 10 || !(data[i].sender_mail.toLowerCase().indexOf(value) == 0) &&
-        // data[i].sender_mail.toLowerCase().indexOf(value) > -1 &&
-        a < 10
-      ) {
+      if (a < 10) {
         if (a === 0) {
           $activeItemClass = "current_item"
         } else {
           $activeItemClass = ""
         }
+
+        var userChat = data[i];
+        var url = userChat[0];
+        var messages = userChat[1];
+        var lastMessage;
+
+        messages.sort((a, b) => b.created_at - a.created_at)
+        lastMessage = messages.slice(0, 1)[0];
+
+
         $startList +=
-          `<a class="list-group-item" data-email='${data[i].sender_email}' data-api_url='${data[i].api_url}'>
+          `<a class="list-group-item" data-api_url='${lastMessage.api_url}' data-contact_title='${lastMessage.sender_wallet}'>
                             <div class="media align-items-center py-1">
                               <span class="avatar avatar-md mr-2">
                                 <img src="app-assets/img/portrait/small/avatar.png" alt="Avatar">
                                 <span class="avatar-status-online"></span>
                               </span>
                               <div class="media-body">
-                                <h6 class="list-group-item-heading mb-1">"${data[i].sender_email}"
-                                    <span class="font-small-2 float-right grey darken-1">"${data[i].created_at}"</span>
+                                <h6 class="list-group-item-heading mb-1">"${lastMessage.sender_wallet}"
+                                    <span class="font-small-2 float-right grey darken-1">"${lastMessage.created_at}"</span>
                                 </h6>
                                 <p class="list-group-item-text grey darken-2 m-0">
-                                    <i class="ft-check primary font-small-2 mr-1"></i><span>"${data[i].txn_id}"</span>
+                                    <i class="ft-check primary font-small-2 mr-1"></i><span>"${lastMessage.txn_id}"</span>
                                     <span class="float-right primary"><i class="font-medium-1 icon-pin"></i></span>
                                 </p>
                               </div>
@@ -254,52 +229,114 @@ function postChat(message, incoming) {
 
     $htmlList = $startList.concat($otherList)
     $("#users-list div.users-list-padding").html($htmlList)
+
+    // $(".list-group-item").click("on", function () {
+    //   selectChat(this);
+    // });
+
+
     $(".list-group-item").click("on", function () {
-      selectChat(this);
+      $("#users-list .users-list-padding .list-group-item").removeClass("selected-chat")
+      $(this).addClass("selected-chat")
+      selectChat(this.dataset.api_url, this.dataset.contact_title);
     });
   }
 
   function fillChat(messages) {
-    $(".chat-app-window .chats").empty();
     var incoming = true;
     $.each(messages, function (index, obj) {
-      incoming = obj.receiver_email == credentials.sender_mail;
+      incoming = obj.sender_wallet != credentials.sender_wallet;
       postChat(obj.txn_id, incoming)
     })
   }
 
   // Add message to chat
-  function postMessage(message, incoming) {
-    if ((message != "") && message != " ") {
-      var html = '<div class="chat-content">' + "<p>" + message + "</p>" + "</div>";
-      $(".chat-app-window .chat:last-child .chat-body").append(html);
-      $(".chat-message-send").val("");
-      $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
+  // function postMessage(message, incoming) {
+  //   if ((message != "") && message != " ") {
+  //     var html = '<div class="chat-content">' + "<p>" + message + "</p>" + "</div>";
+  //     $(".chat-app-window .chat:last-child .chat-body").append(html);
+  //     $(".chat-message-send").val("");
+  //     $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
+  //   }
+  // }
+
+  function selectChat(api_url, title) {
+
+    $("#contact-area .contact-title").text(api_url)
+    $("#contact-area").attr("data-api_url", api_url)
+    //var api_url;
+
+    //var chat = Object.entries(chatList);
+    var chat = chatGroup.filter(chat => chat[0] == api_url)[0]
+    
+    var messages = chat[1]
+    messages.sort((a, b) => a.created_at - b.created_at)
+    $(".chat-app-window .chats").empty();
+
+    fillChat(messages)
+
+  }
+
+
+
+
+  //  Start function code
+
+  // Check login and credentials
+  if (!cred || !credentials || !credentials.sender_wallet || !credentials.api_url) {
+    $(".main-wrapper").addClass("show-blocker");
+    $("#btn_login").show();
+    $("#user_bar").hide();
+    return;
+  }
+  else {
+    $("#user-title").text(credentials.sender_wallet);
+    $("#btn_login").hide();
+    $("#user_bar").show();
+  }
+
+  console.log("Loading chat list..");
+
+  $.get(credentials.api_url + "/request", function (chats) {
+
+    if (!chats || chats.length == 0) {
+      $(".wrapper").addClass("show-overlay")
+      return;
     }
-  }
 
-  function selectChat(email) {
-    console.log(email)
-    $("#contact-area .contact-title").text(email)
-    var api_url;
-
-    $.get(user_api_url, function (users) {
-      var selectedUser = users.filter(user => user.sender_mail == email)[0];
-      var api = selectedUser.api_url;
-      console.log("API URL:")
-      console.log(api)
-      $("#contact-area").attr("data-api_url", api)
-    })
+    console.log(chats);
+    var i = 0;
 
 
-    $("#users-list .users-list-padding .list-group-item").removeClass("selected-chat")
-    var data = chatList.filter(message => message.sender_email == email || message.receiver_email == email)
-    fillChat(data)
 
-  }
+    // // Grouping by interlocutor
+    // var data = chatList.reduce((chat, message) => {
+    //   const email = message.sender_email == credentials.sender_mail ? message.receiver_email : message.sender_email;
+    //   chat[email] = chat[email] ?? [];
+    //   chat[email].push(message);
+    //   return chat;
+    // }, {});
 
-  function test(data) {
-    console.log(data)
-  }
+    // Grouping by interlocutor
+    chatList = chats.reduce((chat, message) => {
+      const api_url = message.api_url
+      chat[api_url] = chat[api_url] ?? [];
+      chat[api_url].push(message);
+      return chat;
+    }, []);
+
+    var data = Object.entries(chatList);
+    chatGroup = data;
+
+    // Fill chat list
+    fillUserList(data);
+
+    $(".list-group-item").click("on", function () {
+      $("#users-list .users-list-padding .list-group-item").removeClass("selected-chat")
+      $(this).addClass("selected-chat")
+      selectChat(this.dataset.api_url, this.dataset.contact_title);
+    });
+
+  });
 
 })(window);

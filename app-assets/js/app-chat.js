@@ -51,10 +51,17 @@ $(document).ready(function () {
 // Add message to chat
 function chatMessagesSend(source) {
   var message = $(".chat-message-send").val();
+
   if ((message != "") && message != " ") {
-    var html = '<div class="chat-content">' + "<p>" + message + "</p>" + "</div>";
-    $(".chat-app-window .chat:last-child .chat-body").append(html);
-    $(".chat-message-send").val("");
+    var html = `<div class="chat">
+    <div class="chat-body">
+      <div class="chat-content">
+       <p>${message}</p>
+      </div>
+    </div>
+  </div>`
+
+    $(".chat-app-window .chats").append(html);
     $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
   }
 }
