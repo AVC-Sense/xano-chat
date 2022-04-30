@@ -218,3 +218,7 @@
 .hidden{
   visibility: hidden;
 }
+
+.chat-application .chat-sidebar .users-list-padding .hovered-chat {
+  background-color: #ccc;
+  border-right: 1px solid #975AFF; }

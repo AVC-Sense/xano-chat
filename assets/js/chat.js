@@ -15,14 +15,14 @@
   - clear search box after adding a new contact
   - clean all code
   + if sender_email == cred.sender.email, then right chat else - left chat
-  - clear input after sending a message
-  - fix adding new Contact to Groupped chats
-  - check filtering
+  + clear input after sending a message
+  + fix adding new Contact to Groupped chats
+  + check filtering
   - add onHover on the Chat list
   - update DB for wallet addresses and statuses
   - update API for statuses
   - update UI for statuses
-
+  - add check existing contacts
 */
 
 const user_api_url = "https://x8ki-letl-twmt.n7.xano.io/api:yKiPHhYH/users";
@@ -141,12 +141,22 @@ function postChat(message, incoming) {
       //if (value != "") {
       $(".wrapper").addClass("show-overlay")
 
-      var data = chatGroup.filter(chat => chat[0].includes(value));
+      var data = chatGroup.filter(chat => chat[1].filter(message => message.sender_wallet.includes(value)).length > 0);
       fillUserList(data);
       if (data.length > 0) {
         $(".wrapper").removeClass("show-overlay")
       }
     }
+  })
+
+  // Add class on hover of the list
+  $(document).on("mouseenter", ".list-group-item", function (e) {
+    $(this).addClass("hovered-chat")
+  })
+
+  // Add class on hover of the list
+  $(document).on("mouseleave", ".list-group-item", function (e) {
+    $(this).removeClass("hovered-chat")
   })
 
   // Add class on hover of the list
