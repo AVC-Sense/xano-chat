@@ -50,7 +50,8 @@ function sendChat() {
       "sender_wallet": dataPost.sender_wallet,
       "api_url": credentials.api_url,
       "txn_id": dataPost.txn_id,
-      "request": dataPost.request.toString()
+      "request": dataPost.request.toString(),
+      "status": "pending"
     }, function (data, status) {
 
       //postChat(message, false)
@@ -60,7 +61,8 @@ function sendChat() {
           "sender_wallet": dataPost.sender_wallet,
           "api_url": dataPost.api_url,
           "txn_id": dataPost.txn_id,
-          "request": dataPost.request.toString()
+          "request": dataPost.request.toString(),
+          "status": "pending"
         }, function (data, status) {
           console.log("URL: " + credentials.api_url);
           console.log("Status: " + status);
