@@ -18,9 +18,9 @@
   + clear input after sending a message
   + fix adding new Contact to Groupped chats
   + check filtering
-  - add onHover on the Chat list
-  - update DB for wallet addresses and statuses
-  - update API for statuses
+  + add onHover on the Chat list
+  + update DB for wallet addresses and statuses
+  + update API for statuses
   - update UI for statuses
   - add check existing contacts
 */
@@ -31,11 +31,10 @@ var chatList = [];
 var chatGroup = [];
 
 
-// TODO: Need to update!
 function sendChat() {
   var api_url = $("#contact-area")[0].dataset.api_url;
   var message = $(".chat-message-send").val();
-  
+
   if ((message == "") || message == " ") { return }
 
   var dataPost = {
@@ -53,9 +52,6 @@ function sendChat() {
       "request": dataPost.request.toString(),
       "status": "pending"
     }, function (data, status) {
-
-      //postChat(message, false)
-
       $.post(credentials.api_url + "/request",
         {
           "sender_wallet": dataPost.sender_wallet,
@@ -64,7 +60,6 @@ function sendChat() {
           "request": dataPost.request.toString(),
           "status": "pending"
         }, function (data, status) {
-          console.log("URL: " + credentials.api_url);
           console.log("Status: " + status);
           $(".chat-app-window").scrollTop($(".chat-app-window > .chats").height());
           $(".chat-message-send").val("");
@@ -73,17 +68,34 @@ function sendChat() {
     });
 }
 
-function postChat(message, incoming) {
+function updateStatus(status, messageId) {
+  $.post(credentials.api_url + "/request/" + messageId,
+    {
+      "status": status
+    }, function (data, statusRequest) {
+      console.log("Status: " + statusRequest);
+      $('*[data-message_id="' + messageId + '"] .chat-content').addClass(status);
+      $('*[data-message_id="' + messageId + '"] .dropdown').hide();
+    })
+}
+
+function postChat(message, incoming, status, messageId) {
   var chat =
-    `<div class="chat ${incoming ? "chat-left" : ""}">
-    <!-- <div class="chat-avatar">
-      <div class="avatar avatar-md">
-       <img src="app-assets/img/portrait/small/avatar.png" alt="avatar">
-      </div>
-    </div> -->
+    `<div class="chat ${incoming ? "chat-left" : ""} ${(incoming && status != "cancelled" && status != "done") ? `" data-message_id='${messageId}'>
+      <div class="chat-avatar">
+        <div class="avatar avatar-md">
+          <div class="btn-group dropdown mr-1">
+            <button type="button" class="btn btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"></button>
+            <div class="dropdown-menu">
+              <a class="dropdown-item done" href="javascript:updateStatus('done', ${messageId});">done</a>
+              <a class="dropdown-item cancelled" href="javascript:updateStatus('cancelled', ${messageId});">cancelled</a>
+            </div>
+          </div>
+        </div>
+      </div> ` : `">`}
     <div class="chat-body">
-      <div class="chat-content">
-       <p>${message}</p>
+      <div class="chat-content ${status}">
+        <p style="float:left;">${message}</p>
       </div>
     </div>
   </div>`;
@@ -103,13 +115,13 @@ function postChat(message, incoming) {
   $("#add_user_btn").click(function () {
     var userChat =
       [$("#api_url").val(), [{
-        api_url : $("#api_url").val(),
-        sender_wallet : $("#sender_wallet").val(),
-        created_at : "",
-        txn_id : ""
+        api_url: $("#api_url").val(),
+        sender_wallet: $("#sender_wallet").val(),
+        created_at: "",
+        txn_id: ""
       }]]
 
-    
+
     chatGroup = chatGroup ?? [];
     const data = [userChat].concat(chatGroup);
     fillUserList(data);
@@ -123,7 +135,6 @@ function postChat(message, incoming) {
     sendChat();
   })
 
-  // TODO: Update Filter
   $("#timesheetinput1").on("keyup", function (e) {
     if (e.keyCode !== 38 && e.keyCode !== 40 && e.keyCode !== 13) {
       if (e.keyCode == 27) {
@@ -204,6 +215,8 @@ function postChat(message, incoming) {
         messages.sort((a, b) => b.created_at - a.created_at)
         lastMessage = messages.slice(0, 1)[0];
 
+        var date = new Date(lastMessage.created_at)
+
 
         $startList +=
           `<a class="list-group-item" data-api_url='${lastMessage.api_url}' data-contact_title='${lastMessage.sender_wallet}'>
@@ -214,7 +227,7 @@ function postChat(message, incoming) {
                               </span>
                               <div class="media-body">
                                 <h6 class="list-group-item-heading mb-1">"${lastMessage.sender_wallet}"
-                                    <span class="font-small-2 float-right grey darken-1">"${lastMessage.created_at}"</span>
+                                    <span class="font-small-2 float-right grey darken-1">"${date.getDate() + "/" + date.getMonth() + "/" + date.getFullYear()}"</span>
                                 </h6>
                                 <p class="list-group-item-text grey darken-2 m-0">
                                     <i class="ft-check primary font-small-2 mr-1"></i><span>"${lastMessage.txn_id}"</span>
@@ -258,7 +271,7 @@ function postChat(message, incoming) {
     var incoming = true;
     $.each(messages, function (index, obj) {
       incoming = obj.sender_wallet != credentials.sender_wallet;
-      postChat(obj.txn_id, incoming)
+      postChat(obj.txn_id, incoming, obj.status, obj.id)
     })
   }
 
@@ -280,7 +293,7 @@ function postChat(message, incoming) {
 
     //var chat = Object.entries(chatList);
     var chat = chatGroup.filter(chat => chat[0] == api_url)[0]
-    
+
     var messages = chat[1]
     messages.sort((a, b) => a.created_at - b.created_at)
     $(".chat-app-window .chats").empty();

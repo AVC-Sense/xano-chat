@@ -133,7 +133,7 @@
     .chat-application .chats .chat-left .chat-content {
       text-align: left;
       float: left;
-      margin: 0 0 10px 20px;
+      margin: 0 0 10px 5px;
       color: #342E49;
       background-color: #F7F7F8; }
       .chat-application .chats .chat-left .chat-content + .chat-content:before {
@@ -222,3 +222,15 @@
 .chat-application .chat-sidebar .users-list-padding .hovered-chat {
   background-color: #ccc;
   border-right: 1px solid #975AFF; }
+
+.chat-application .chats .chat-left .chat-content.cancelled {
+  background-color: #f89d9d; }
+
+  .chat-application .chats .chat-left .chat-content.done {
+    background-color: #b2f89d; }
+
+    .chat-application .chats .dropdown-item.done {
+      background-color: #b2f89d; }
+
+      .chat-application .chats .dropdown-item.cancelled {
+        background-color: #f89d9d; }
